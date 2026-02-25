@@ -1,0 +1,12 @@
+# Node modules
+backend/node_modules/
+frontend-react/node_modules/
+
+# React build
+frontend-react/build/
+
+# Environment variables
+.env
+
+# macOS system files
+.DS_Store
