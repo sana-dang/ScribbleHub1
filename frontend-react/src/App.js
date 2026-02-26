@@ -1,28 +1,26 @@
-
 import React, { useState, useEffect } from "react";
 import "./style.css";
+
+const API_URL = "http://localhost:3000/stories";
 
 function App() {
   const [stories, setStories] = useState([]);
   const [title, setTitle] = useState("");
   const [story, setStory] = useState("");
   const [category, setCategory] = useState("");
-  const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [filterCat, setFilterCat] = useState("all");
+  const [charCount, setCharCount] = useState(0);
   const [darkMode, setDarkMode] = useState(false);
-  const [likes, setLikes] = useState({}); // track likes per story
-  const [bookmarks, setBookmarks] = useState({}); // track bookmarks
-
-  const API_URL = "http://localhost:3000/stories";
 
   // Load stories from backend
   const loadStories = async () => {
     try {
       const res = await fetch(API_URL);
       const data = await res.json();
-      setStories(data);
+      setStories(data.reverse()); // newest first
     } catch (err) {
-      console.error("Error loading stories:", err);
+      console.error(err);
     }
   };
 
@@ -30,36 +28,27 @@ function App() {
     loadStories();
   }, []);
 
-  // Publish new story
+  // Publish story
   const publishStory = async () => {
     if (!title || !story || !category) {
       alert("Fill all fields");
       return;
     }
+
     try {
-      const res = await fetch(API_URL, {
+      await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, story, category }),
       });
-      if (!res.ok) throw new Error("Failed to publish story");
       setTitle("");
       setStory("");
       setCategory("");
+      setCharCount(0);
       loadStories();
     } catch (err) {
       console.error("Error publishing story:", err);
     }
-  };
-
-  // Like a story
-  const toggleLike = (id) => {
-    setLikes((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  // Bookmark a story
-  const toggleBookmark = (id) => {
-    setBookmarks((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   // Copy story
@@ -68,18 +57,18 @@ function App() {
     alert("Copied!");
   };
 
-  // Filtered stories based on search and category
-  const filteredStories = stories
-    .filter(
-      (s) =>
-        s.title.toLowerCase().includes(search.toLowerCase()) ||
-        s.story.toLowerCase().includes(search.toLowerCase())
-    )
-    .filter((s) => filterCat === "all" || s.category === filterCat);
+  // Filtered stories for search & category
+  const filteredStories = stories.filter((s) => {
+    const matchesSearch =
+      s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.story.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = filterCat === "all" || s.category === filterCat;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div className={darkMode ? "dark" : ""}>
-      {/* Theme Toggle */}
+      {/* Theme toggle */}
       <div className="theme-toggle">
         <button onClick={() => setDarkMode(!darkMode)}>
           {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
@@ -92,15 +81,14 @@ function App() {
         <p>Share, like, bookmark, and explore stories</p>
       </header>
 
-      {/* Main */}
       <main className="container">
         {/* Controls */}
         <div className="controls">
           <input
             type="text"
             placeholder="Search stories..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
           <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)}>
             <option value="all">All Categories</option>
@@ -131,19 +119,21 @@ function App() {
           </select>
           <textarea
             placeholder="Your story..."
-            value={story}
-            onChange={(e) => setStory(e.target.value)}
             maxLength={500}
-          ></textarea>
-          <div>{story.length} / 500</div>
+            value={story}
+            onChange={(e) => {
+              setStory(e.target.value);
+              setCharCount(e.target.value.length);
+            }}
+          />
+          <div id="charCount">{charCount} / 500</div>
           <button onClick={publishStory}>Publish</button>
         </section>
 
         {/* Published Stories */}
         <section className="published-stories">
           <h2>Published Stories</h2>
-          <div className="stories-grid">
-            {filteredStories.length === 0 && <p>No stories found.</p>}
+          <div id="storiesContainer" className="stories-grid">
             {filteredStories.map((s) => (
               <div key={s._id} className="story-card">
                 <h3>{s.title}</h3>
@@ -151,12 +141,8 @@ function App() {
                 <div className="category">{s.category}</div>
                 <p>{s.story}</p>
                 <div className="actions">
-                  <button onClick={() => toggleLike(s._id)}>
-                    {likes[s._id] ? "❤️ Liked" : "❤️ Like"}
-                  </button>
-                  <button onClick={() => toggleBookmark(s._id)}>
-                    {bookmarks[s._id] ? "🔖 Bookmarked" : "🔖 Bookmark"}
-                  </button>
+                  <button>❤️ Like</button>
+                  <button>🔖 Bookmark</button>
                   <button onClick={() => copyStory(s.title, s.story)}>📋 Copy</button>
                 </div>
               </div>
@@ -165,7 +151,6 @@ function App() {
         </section>
       </main>
 
-      {/* Footer */}
       <footer>
         <p>&copy; 2026 ScribbleHub</p>
       </footer>
